@@ -1,7 +1,9 @@
 import os
 import re
+import json
 from statistics import median
-from typing import TextIO, Optional, Tuple, List, Dict, Union
+from datetime import datetime, timedelta
+from typing import Optional, Tuple, List, Dict, TextIO
 
 # log_format ui_short '$remote_addr  $remote_user $http_x_real_ip [$time_local] "$request" '
 #                     '$status $body_bytes_sent "$http_referer" '
@@ -11,7 +13,8 @@ from typing import TextIO, Optional, Tuple, List, Dict, Union
 config = {
     "REPORT_SIZE": 1000,
     "REPORT_DIR": "./reports",
-    "LOG_DIR": "./log"
+    "LOG_DIR": "./log",
+    "TEMPLATE_FILE": "report.html"
 }
 
 
@@ -29,9 +32,7 @@ def parse_log_file_dates(log_folder: str) -> List[str]:
     return [file_name.split('-')[-1] for file_name in os.listdir(log_folder)]
 
 
-def get_latest_log_file(log_folder: str) -> str:
-    log_file_dates = parse_log_file_dates(log_folder=log_folder)
-    latest_date = max(log_file_dates)
+def get_latest_log_file(log_folder: str, latest_date: str) -> str:
     return f'{log_folder}/nginx-access-ui.log-{latest_date}'
 
 
@@ -86,7 +87,7 @@ def count_time_statistics(request_time_array: dict) -> dict:
     return time_stats
 
 
-def generate_report_file(
+def generate_report_data(
     time_stats: dict,
     requests_data: dict,
     time_percentiles: Dict[str, float],
@@ -108,25 +109,68 @@ def generate_report_file(
     return reports
 
 
+def generate_reports(log_file: TextIO, search_pattern: re.Pattern):
+    log_data = [extract_log_data(line, search_pattern) for line in log_file.readlines()]
+    requests_data = collect_request_data(log_data)
+
+    requests_total_count = count_total(requests_data, 'count')
+    requests_total_times_count = count_total(requests_data, 'times')
+
+    requests_count_percentiles = generate_percentiles_report(requests_data, 'count', requests_total_count)
+    requests_time_percentiles = generate_percentiles_report(requests_data, 'times', requests_total_times_count)
+
+    time_statistics = count_time_statistics(requests_data)
+
+    reports = generate_report_data(
+        time_statistics,
+        requests_data,
+        requests_count_percentiles,
+        requests_time_percentiles
+    )
+    return reports
+
+
+def generate_report_file_name(file_date: str):
+    try:
+        date = datetime.strptime(file_date, "%Y%m%d")
+    except ValueError:
+        year, month = int(file_date[:4]), int(file_date[4:6])
+        date = datetime(year, month, 1) + timedelta(days=31)
+        date = date.replace(day=1) - timedelta(days=1)
+
+    return f"/report-{date.strftime('%Y.%m.%d')}.html"
+
+
+def generate_report_file(reports: list, latest_log_file_date):
+    report_file_name = generate_report_file_name(latest_log_file_date)
+
+    with open(config.get('TEMPLATE_FILE'), "r", encoding="utf-8") as file:
+        template_html = file.read()
+
+    json_data = json.dumps(reports, indent=2, ensure_ascii=False)
+
+    updated_html = template_html.replace("$table_json", json_data)
+
+    output_path = config.get("REPORT_DIR") + report_file_name
+
+    with open(output_path, "w", encoding="utf-8") as file:
+        file.write(updated_html)
+
+
 def main():
-    latest_log_file_name = get_latest_log_file(config.get('LOG_DIR'))
+    log_file_dates = parse_log_file_dates(config.get('LOG_DIR'))
+    if not log_file_dates:
+        return
+
+    latest_log_file_date = max(log_file_dates)
+
+    log_file_name = get_latest_log_file(config.get('LOG_DIR'), latest_log_file_date)
+
     search_pattern = generate_search_pattern()
 
-    with open(latest_log_file_name, 'r') as log_file:
-        log_data = [extract_log_data(line, search_pattern) for line in log_file.readlines()]
-        requests_data = collect_request_data(log_data)
-
-        requests_total_count = count_total(requests_data, 'count')
-        requests_total_times_count = count_total(requests_data, 'times')
-
-        requests_count_percentiles = generate_percentiles_report(requests_data, 'count', requests_total_count)
-        requests_time_percentiles = generate_percentiles_report(requests_data, 'times', requests_total_times_count)
-
-        time_statistics = count_time_statistics(requests_data)
-
-        reports = generate_report_file(time_statistics, requests_data, requests_count_percentiles, requests_time_percentiles)
-
-        return reports
+    with open(log_file_name, 'r') as log_file:
+        reports = generate_reports(log_file=log_file, search_pattern=search_pattern)
+    generate_report_file(reports, latest_log_file_date)
 
 
 if __name__ == "__main__":
