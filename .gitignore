@@ -3,9 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-/homework/log/*
+/project/data/log/*
 *.ipynb
-/homework/reports/*
+/project/data/reports/*
 *.pdf
 # C extensions
 *.so

@@ -1,0 +1,7 @@
+{
+  "REPORT_SIZE": 5000,
+  "LOG_FILE": "./data/log/logfile.txt",
+  "REPORT_DIR": "./data/reports",
+  "LOG_DIR": "./data/log",
+  "TEMPLATE_FILE": "report.html"
+}
