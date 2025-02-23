@@ -19,9 +19,9 @@ def count_time_statistics(request_time_array: dict) -> dict:
     time_stats = {}
     for url, data in request_time_array.items():
         time_stats[url] = {
-            'sum': sum(data['times']),
-            'avg': sum(data['times']) / len(data['times']),
-            'max': max(data['times']),
-            'med': median(data['times'])
+            "sum": sum(data["times"]),
+            "avg": sum(data["times"]) / len(data["times"]),
+            "max": max(data["times"]),
+            "med": median(data["times"]),
         }
     return time_stats

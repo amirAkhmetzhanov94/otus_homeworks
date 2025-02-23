@@ -10,7 +10,7 @@
 ### Краткое содержание занятия
 * шаблон структуры проекта;
 * Makefile;
-* управление зависимостями, setup.py,pyproject.toml, poetry; 
+* управление зависимостями, setup.py,pyproject.toml, poetry;
 * versioning, vendoring;
 * обзор инструментов и библиотек для настройки окружения;
 * pre-commit hooks;

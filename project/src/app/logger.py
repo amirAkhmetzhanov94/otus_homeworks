@@ -1,13 +1,11 @@
 import logging
-import structlog
 from typing import Optional
 
+import structlog
 
-def configure_logging(log_file_path: Optional[str] = None):
-    processors = [
-        structlog.stdlib.filter_by_level,
-        structlog.processors.JSONRenderer()
-    ]
+
+def configure_logging(log_file_path: Optional[str] = None) -> None:
+    processors = [structlog.stdlib.filter_by_level, structlog.processors.JSONRenderer()]
 
     structlog.configure(
         processors=processors,
@@ -21,16 +19,13 @@ def configure_logging(log_file_path: Optional[str] = None):
         logging.basicConfig(
             level=logging.DEBUG,
             format="%(message)s",
-            handlers=[
-                logging.FileHandler(log_file_path),
-                logging.StreamHandler()
-            ]
+            handlers=[logging.FileHandler(log_file_path), logging.StreamHandler()],
         )
     else:
         logging.basicConfig(
             level=logging.DEBUG,
             format="%(message)s",
-            handlers=[logging.StreamHandler()]
+            handlers=[logging.StreamHandler()],
         )
 
 
