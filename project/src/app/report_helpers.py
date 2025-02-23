@@ -94,7 +94,6 @@ def generate_report_file_name(file_date: str):
         year, month = int(file_date[:4]), int(file_date[4:6])
         date = datetime(year, month, 1) + timedelta(days=31)
         date = date.replace(day=1) - timedelta(days=1)
-
     return f"/report-{date.strftime('%Y.%m.%d')}.html"
 
 
