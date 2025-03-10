@@ -28,9 +28,10 @@ def main():
                 config.update(external_conf_data)
                 configure_logging(config.get("LOG_FILE"))
 
-        except FileNotFoundError:
+        except FileNotFoundError as err:
+            logger.error(err)
             logger.error(
-                "Config file not found",
+                "File not found",
                 config_file_path=config_file_path.config,
             )
 
@@ -53,7 +54,8 @@ def main():
                     log_file=log_file, search_pattern=search_pattern
                 )
                 generate_report_file(reports, config, latest_date)
-    except FileNotFoundError:
+    except FileNotFoundError as err:
+        logger.error(err)
         logger.error(
             "Log file not found",
             config_file_path=config_file_path.config,

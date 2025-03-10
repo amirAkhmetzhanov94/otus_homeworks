@@ -1,7 +1,0 @@
-name: main-ci
-
-on:
-  workflow_dispatch
-jobs:
-    call-reusable-workflow:
-      uses: ./.github/workflows/homework-1.yml

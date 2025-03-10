@@ -3,9 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.DS_Store
-/project/data/log/*
+/data/log/*
 *.ipynb
-/project/data/reports/*
+/data/reports/*
 *.pdf
 # C extensions
 *.so
@@ -54,6 +54,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+log/
 
 # Translations
 *.mo

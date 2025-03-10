@@ -5,14 +5,15 @@ import structlog
 
 
 def configure_logging(log_file_path: Optional[str] = None) -> None:
-    processors = [structlog.stdlib.filter_by_level, structlog.processors.JSONRenderer()]
+    processors = [
+        structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M.%S"),
+        structlog.processors.add_log_level,
+        structlog.processors.format_exc_info,
+        structlog.dev.ConsoleRenderer(),
+    ]
 
     structlog.configure(
         processors=processors,
-        context_class=dict,
-        logger_factory=structlog.stdlib.LoggerFactory(),
-        wrapper_class=structlog.stdlib.BoundLogger,
-        cache_logger_on_first_use=True,
     )
 
     if log_file_path:
