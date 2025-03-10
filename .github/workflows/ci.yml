@@ -30,7 +30,9 @@ jobs:
             poetry-${{ hashFiles('**/poetry.lock') }}
 
       - name: Install Dependencies
-        run: poetry install
+        run: |
+          cd ./homework
+          poetry install
         if: steps.cache.outputs.cache-hit != 'true'
 
       - name: Code Quality
