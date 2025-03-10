@@ -1,12 +1,6 @@
 name: homework_1_deployment
 
-on:
-workflow_dispatch:
-    inputs:
-      environment:
-        description: 'manual deployment of homework_1'
-        required: true
-        default: 'development'
+on: workflow_call
 
 jobs:
   test:
