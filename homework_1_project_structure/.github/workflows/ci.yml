@@ -1,9 +1,14 @@
-name: CI
+name: homework_1_deployment
 
-on: [push]
+on:
+workflow_dispatch:
+    inputs:
+      environment:
+        description: 'manual deployment of homework_1'
+        required: true
+        default: 'development'
 
 jobs:
-
   test:
     runs-on: ubuntu-latest
 
@@ -31,18 +36,18 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          cd ./project
+          cd ./homework_1_project_structure/project
           poetry install
         if: steps.cache.outputs.cache-hit != 'true'
 
       - name: Code Quality
         run: |
-          cd ./project
+          cd ./homework_1_project_structure/project
           poetry run black . --line-length=89
           poetry run isort . --profile black --line-length=89
           poetry run flake8 . --max-line-length=89 --extend-ignore=BLK100
 
       - name: Test with pytest
         run: |
-          cd ./project
+          cd ./homework_1_project_structure/project
           poetry run pytest
