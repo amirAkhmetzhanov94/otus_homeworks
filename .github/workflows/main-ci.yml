@@ -4,4 +4,4 @@ on:
   workflow_dispatch
 jobs:
     call-reusable-workflow:
-      uses: ./otus_homeworks/homework_1_project_structure/.github/workflows/ci.yml@master
+      uses: ./.github/workflows/homework-1.yml@master
