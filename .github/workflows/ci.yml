@@ -37,9 +37,9 @@ jobs:
 
       - name: Code Quality
         run: |
-          black --line-length=89
-          isort --profile black --line-length=89
-          flake8 --max-line-length=89 --extend-ignore=BLK100
+          poetry run black --line-length=89
+          poetry run isort --profile black --line-length=89
+          poetry run flake8 --max-line-length=89 --extend-ignore=BLK100
 
       - name: Test with pytest
         run: poetry run pytest -n 2
