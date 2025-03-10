@@ -1,11 +1,7 @@
 name: main-ci
 
 on:
-  workflow_call:
-    inputs:
-      config-path:
-        required: true
-        type: string
+  workflow_dispatch
 jobs:
     call-reusable-workflow:
       uses: otus_homeworks/homework_1_project_structure/.github/workflows/ci.yml
