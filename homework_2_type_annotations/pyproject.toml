@@ -1,16 +1,24 @@
-[project]
-name = "home-2"
+[tool.poetry]
+name = "otus-python-pro-homework-2"
 version = "0.1.0"
-description = ""
-authors = [
-    {name = "amirAkhmetzhanov94",email = "amir.akhmetzhanov94@gmail.com"}
-]
+authors = ["Amir Akhmetzhanov <amir.akhmetzhanov94@gmail.com>"]
 readme = "README.md"
-requires-python = ">=3.11"
-dependencies = [
-]
+package-mode = false
 
+[tool.poetry.dependencies]
+python = "^3.12"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.4.2"
+flake8 = "^7.0.0"
+isort = "^5.13.2"
+mypy = "^1.15.0"
+pre-commit = "^4.2.0"
+pytest = "^8.2.1"
+
+[tool.mypy]
+python_version = "3.12"

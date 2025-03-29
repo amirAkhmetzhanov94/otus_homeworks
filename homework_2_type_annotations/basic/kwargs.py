@@ -5,5 +5,4 @@ TODO:
 """
 
 
-def foo(**kwargs: str | int):
-    ...
+def foo(**kwargs: str | int): ...
