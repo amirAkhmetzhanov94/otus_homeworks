@@ -37,4 +37,4 @@ jobs:
       - name: Check with mypy
         run: |
           cd ./homework_2_type_annotations
-          poetry run mypy
+          poetry run mypy .
