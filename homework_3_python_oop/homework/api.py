@@ -8,7 +8,6 @@ import logging
 import hashlib
 import uuid
 from argparse import ArgumentParser
-from curses.ascii import isdigit
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from exceptions import ValidationException
@@ -45,13 +44,15 @@ class Field:
         self.nullable = nullable
 
     def validate(self, value):
-        if value is None and self.required == True:
-            raise ValidationException(
-                message="Field is required",
-                field=self.__class__.__name__,
-                value=value,
-                hint="Field cannot be None",
-            )
+        if value is None:
+            if self.required:
+                raise ValidationException(
+                    message="Field is required",
+                    field=self.__class__.__name__,
+                    value=value,
+                    hint="Field cannot be None",
+                )
+            return
 
 
 class MetaRequest(type):
@@ -68,6 +69,8 @@ class MetaRequest(type):
 class CharField(Field):
     def validate(self, value):
         super().validate(value)
+        if value is None:
+            return
         if value in ("", None) and self.nullable == False:
             raise ValidationException(
                 message="Field cannot be empty",
@@ -93,6 +96,8 @@ class ArgumentsField(Field):
 class EmailField(Field):
     def validate(self, value):
         super().validate(value)
+        if value is None:
+            return
         if '@' not in value:
             raise ValidationException(
                 message="Invalid email format",
@@ -105,6 +110,8 @@ class EmailField(Field):
 class PhoneField(Field):
     def validate(self, value):
         super().validate(value)
+        if value is None:
+            return
         if isinstance(value, int):
             value = str(value)
         if len(value) != 11:
@@ -130,6 +137,8 @@ class DateField(Field):
 class BirthDayField(Field):
     def validate(self, value):
         super().validate(value)
+        if value is None:
+            return
         try:
             birthday = datetime.datetime.strptime(value, "%d.%m.%Y").date()
         except ValueError:
@@ -152,6 +161,8 @@ class BirthDayField(Field):
 class GenderField(Field):
     def validate(self, value):
         super().validate(value)
+        if value is None:
+            return
         if not isinstance(value, int):
             raise ValidationException(
                 message="Invalid gender format",
@@ -233,15 +244,16 @@ def method_handler(request, ctx, store):
     if request_body.get('method') == "online_score":
         args = request_body.get('arguments', {})
 
-        online_score_request = OnlineScoreRequest(
-            first_name=args.get('first_name'),
-            last_name=args.get('last_name'),
-            email=args.get('email'),
-            phone=args.get('phone'),
-            birthday=args.get('birthday'),
-            gender=args.get('gender')
-        )
+
         try:
+            online_score_request = OnlineScoreRequest(
+                first_name=args.get('first_name'),
+                last_name=args.get('last_name'),
+                email=args.get('email'),
+                phone=args.get('phone'),
+                birthday=args.get('birthday'),
+                gender=args.get('gender')
+            )
             online_score_request.validate()
             score = get_score(
                 store=store,
