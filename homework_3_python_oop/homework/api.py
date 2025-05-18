@@ -1,17 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import abc
-import json
 import datetime
-import logging
 import hashlib
+import json
+import logging
 import uuid
 from argparse import ArgumentParser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from exceptions import ValidationException
-from scoring import get_score, get_interests
+from scoring import get_interests, get_score
 
 SALT = "Otus"
 ADMIN_LOGIN = "admin"
@@ -37,6 +36,7 @@ GENDERS = {
     MALE: "male",
     FEMALE: "female",
 }
+
 
 class Field:
     def __init__(self, required=False, nullable=False):
@@ -82,6 +82,7 @@ class ArgumentsField(Field):
     def validate(self, value):
         ...
 
+
 class EmailField(Field):
     def validate(self, value):
         super().validate(value)
@@ -113,6 +114,7 @@ class PhoneField(Field):
                 value=value,
                 hint="Phone number must start with '7'",
             )
+
 
 class DateField(Field):
     def validate(self, value):
@@ -204,6 +206,7 @@ class BaseRequest(metaclass=MetaRequest):
             field.validate(value)
             setattr(self, name, value)
 
+
 class ClientsInterestsRequest(BaseRequest):
     client_ids = ClientIDsField(required=True)
     date = DateField(required=False, nullable=True)
@@ -218,7 +221,13 @@ class OnlineScoreRequest(BaseRequest):
     gender = GenderField(required=False, nullable=True)
 
     def has_valid_pair(self):
-        if any([self.phone and self.email, self.first_name and self.last_name, self.birthday and self.gender]):
+        if any(
+                [
+                    self.phone and self.email,
+                    self.first_name and self.last_name,
+                    self.birthday and self.gender
+                ]
+        ):
             return True
         return False
 
@@ -227,7 +236,14 @@ class OnlineScoreRequest(BaseRequest):
             raise ValidationException(
                 message="No valid pair of fields",
                 field="phone, email, first_name, last_name, birthday, gender",
-                value=[self.phone, self.email, self.first_name, self.last_name, self.birthday, self.gender],
+                value=[
+                    self.phone,
+                    self.email,
+                    self.first_name,
+                    self.last_name,
+                    self.birthday,
+                    self.gender
+                ],
             )
 
 
@@ -245,9 +261,13 @@ class MethodRequest(BaseRequest):
 
 def check_auth(request):
     if request.is_admin:
-        digest = hashlib.sha512((datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT).encode('utf-8')).hexdigest()
+        digest = hashlib.sha512(
+            (datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT).encode('utf-8')
+        ).hexdigest()
     else:
-        digest = hashlib.sha512((request.account + request.login + SALT).encode('utf-8')).hexdigest()
+        digest = hashlib.sha512(
+            (request.account + request.login + SALT).encode('utf-8')
+        ).hexdigest()
     return digest == request.token
 
 
@@ -258,12 +278,12 @@ def method_handler(request, ctx, store):
         login=request_body.get('login'),
         token=request_body.get('token'),
         method=request_body.get('method'),
-        arguments=request_body.get('arguments')
+        arguments=request_body.get('arguments'),
     )
 
     if check_auth(request_method):
         args = request_body.get('arguments', {})
-        ctx["has"] = [k for k,v in args.items() if v not in (None, "", [])]
+        ctx["has"] = [k for k, v in args.items() if v not in (None, "", [])]
         if request_method.is_admin:
             return {
                 "score": 42,
@@ -341,7 +361,11 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
             logging.info("%s: %s %s" % (self.path, data_string, context["request_id"]))
             if path in self.router:
                 try:
-                    response, code = self.router[path]({"body": request, "headers": self.headers}, context, self.store)
+                    response, code = self.router[path](
+                        {"body": request, "headers": self.headers},
+                        context,
+                        self.store,
+                    )
                 except Exception as e:
                     logging.exception("Unexpected error: %s" % e)
                     code = INTERNAL_ERROR
@@ -354,7 +378,10 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
         if code not in ERRORS:
             r = {"response": response, "code": code}
         else:
-            r = {"error": response or ERRORS.get(code, "Unknown Error"), "code": code}
+            r = {
+                "error": response or ERRORS.get(code, "Unknown Error"),
+                "code": code
+            }
         context.update(r)
         logging.info(context)
         self.wfile.write(json.dumps(r).encode('utf-8'))
@@ -366,8 +393,11 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--port", action="store", type=int, default=8080)
     parser.add_argument("-l", "--log", action="store", default=None)
     args = parser.parse_args()
-    logging.basicConfig(filename=args.log, level=logging.INFO,
-                        format='[%(asctime)s] %(levelname).1s %(message)s', datefmt='%Y.%m.%d %H:%M:%S')
+    logging.basicConfig(
+        filename=args.log,
+        level=logging.INFO,
+        format='[%(asctime)s] %(levelname).1s %(message)s', datefmt='%Y.%m.%d %H:%M:%S'
+    )
     server = HTTPServer(("localhost", args.port), MainHTTPHandler)
     logging.info("Starting server at %s" % args.port)
     try:

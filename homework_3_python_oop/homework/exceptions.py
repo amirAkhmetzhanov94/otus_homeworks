@@ -12,5 +12,3 @@ class ValidationException(Exception):
     def __str__(self):
         base = f"Validation error on '{self.field}': некорректный формат значения '{self.value}'. {self.message}"
         return f"{base}. Hint: {self.hint}" if self.hint else base
-
-
