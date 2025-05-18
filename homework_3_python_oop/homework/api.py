@@ -11,7 +11,7 @@ from argparse import ArgumentParser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from exceptions import ValidationException
-from scoring import get_score
+from scoring import get_score, get_interests
 
 SALT = "Otus"
 ADMIN_LOGIN = "admin"
@@ -52,7 +52,6 @@ class Field:
                     value=value,
                     hint="Field cannot be None",
                 )
-            return
 
 
 class MetaRequest(type):
@@ -128,6 +127,13 @@ class DateField(Field):
                     value=value,
                     hint="Date must be in 'dd.mm.yyyy' format",
                 )
+        else:
+            raise ValidationException(
+                message="Invalid date format",
+                field=self.__class__.__name__,
+                value=value,
+                hint="Date must be a string",
+            )
 
 
 class BirthDayField(Field):
@@ -191,18 +197,17 @@ class ClientIDsField(Field):
             )
 
 
-
-class ClientsInterestsRequest(object):
-    client_ids = ClientIDsField(required=True)
-    date = DateField(required=False, nullable=True)
-
-
 class BaseRequest(metaclass=MetaRequest):
     def __init__(self, **kwargs):
         for name, field in self.__fields__.items():
             value = kwargs.get(name)
             field.validate(value)
             setattr(self, name, value)
+
+class ClientsInterestsRequest(BaseRequest):
+    client_ids = ClientIDsField(required=True)
+    date = DateField(required=False, nullable=True)
+
 
 class OnlineScoreRequest(BaseRequest):
     first_name = CharField(required=False, nullable=True)
@@ -288,12 +293,28 @@ def method_handler(request, ctx, store):
 
             return {"score": score}, 200
 
-    return {
-        "error": "Forbidden",
-    }, 403
+        elif request_body.get('method') == "client_interests":
+            try:
+                client_ids_request = ClientsInterestsRequest(
+                    client_ids=args.get('client_ids'),
+                    date=args.get('date')
+                )
+            except ValidationException as e:
+                return {"error": str(e)}, INVALID_REQUEST
 
-    # response, code = None, None
-    # return response, code
+            ctx["nclients"] = len(client_ids_request.client_ids)
+
+            client_interests = {}
+
+            for client_id in client_ids_request.client_ids:
+                client_interests[client_id] = get_interests(
+                    store=store,
+                    cid=client_id,
+                )
+
+            return client_interests, 200
+
+    return {"error": "Forbidden"}, 403
 
 
 class MainHTTPHandler(BaseHTTPRequestHandler):
