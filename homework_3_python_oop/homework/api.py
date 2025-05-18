@@ -44,8 +44,8 @@ class Field:
         self.nullable = nullable
 
     def validate(self, value):
-        if value is None:
-            if self.required:
+        if value in ("", None, [], {}):
+            if self.required and not self.nullable:
                 raise ValidationException(
                     message="Field is required",
                     field=self.__class__.__name__,
@@ -69,15 +69,6 @@ class MetaRequest(type):
 class CharField(Field):
     def validate(self, value):
         super().validate(value)
-        if value is None:
-            return
-        if value in ("", None) and self.nullable == False:
-            raise ValidationException(
-                message="Field cannot be empty",
-                field=self.__class__.__name__,
-                value=value,
-                hint="Field cannot be empty",
-            )
         if not isinstance(value, str):
             raise ValidationException(
                 message="Field must be a string",
@@ -90,14 +81,11 @@ class CharField(Field):
 class ArgumentsField(Field):
 
     def validate(self, value):
-        print(value)
-
+        ...
 
 class EmailField(Field):
     def validate(self, value):
         super().validate(value)
-        if value is None:
-            return
         if '@' not in value:
             raise ValidationException(
                 message="Invalid email format",
@@ -110,8 +98,6 @@ class EmailField(Field):
 class PhoneField(Field):
     def validate(self, value):
         super().validate(value)
-        if value is None:
-            return
         if isinstance(value, int):
             value = str(value)
         if len(value) != 11:
@@ -131,14 +117,22 @@ class PhoneField(Field):
 
 class DateField(Field):
     def validate(self, value):
-        print(value)
+        super().validate(value)
+        if isinstance(value, str):
+            try:
+                value = datetime.datetime.strptime(value, "%d.%m.%Y").date()
+            except ValueError:
+                raise ValidationException(
+                    message="Invalid date format",
+                    field=self.__class__.__name__,
+                    value=value,
+                    hint="Date must be in 'dd.mm.yyyy' format",
+                )
 
 
 class BirthDayField(Field):
     def validate(self, value):
         super().validate(value)
-        if value is None:
-            return
         try:
             birthday = datetime.datetime.strptime(value, "%d.%m.%Y").date()
         except ValueError:
@@ -161,8 +155,6 @@ class BirthDayField(Field):
 class GenderField(Field):
     def validate(self, value):
         super().validate(value)
-        if value is None:
-            return
         if not isinstance(value, int):
             raise ValidationException(
                 message="Invalid gender format",
@@ -181,9 +173,23 @@ class GenderField(Field):
 
 
 class ClientIDsField(Field):
-
     def validate(self, value):
-        print(value)
+        super().validate(value)
+        if not isinstance(value, list):
+            raise ValidationException(
+                message="Invalid client IDs format",
+                field=self.__class__.__name__,
+                value=value,
+                hint="Client IDs must be a list",
+            )
+        if not all(isinstance(i, int) for i in value):
+            raise ValidationException(
+                message="Invalid client ID format",
+                field=self.__class__.__name__,
+                value=value,
+                hint="Client IDs must be integers",
+            )
+
 
 
 class ClientsInterestsRequest(object):
@@ -191,19 +197,20 @@ class ClientsInterestsRequest(object):
     date = DateField(required=False, nullable=True)
 
 
-class OnlineScoreRequest(metaclass=MetaRequest):
+class BaseRequest(metaclass=MetaRequest):
+    def __init__(self, **kwargs):
+        for name, field in self.__fields__.items():
+            value = kwargs.get(name)
+            field.validate(value)
+            setattr(self, name, value)
+
+class OnlineScoreRequest(BaseRequest):
     first_name = CharField(required=False, nullable=True)
     last_name = CharField(required=False, nullable=True)
     email = EmailField(required=False, nullable=True)
     phone = PhoneField(required=False, nullable=True)
     birthday = BirthDayField(required=False, nullable=True)
     gender = GenderField(required=False, nullable=True)
-
-    def __init__(self, **kwargs):
-        for name, field in self.__fields__.items():
-            value = kwargs.get(name)
-            field.validate(value)
-            setattr(self, name, value)
 
     def has_valid_pair(self):
         if any([self.phone and self.email, self.first_name and self.last_name, self.birthday and self.gender]):
@@ -219,7 +226,7 @@ class OnlineScoreRequest(metaclass=MetaRequest):
             )
 
 
-class MethodRequest(Field):
+class MethodRequest(BaseRequest):
     account = CharField(required=False, nullable=True)
     login = CharField(required=True, nullable=True)
     token = CharField(required=True, nullable=True)
@@ -241,37 +248,52 @@ def check_auth(request):
 
 def method_handler(request, ctx, store):
     request_body = request.get('body')
-    if request_body.get('method') == "online_score":
+    request_method = MethodRequest(
+        account=request_body.get('account'),
+        login=request_body.get('login'),
+        token=request_body.get('token'),
+        method=request_body.get('method'),
+        arguments=request_body.get('arguments')
+    )
+
+    if check_auth(request_method):
         args = request_body.get('arguments', {})
+        ctx["has"] = [k for k,v in args.items() if v not in (None, "", [])]
+        if request_method.is_admin:
+            return {
+                "score": 42,
+            }, 200
+        if request_body.get('method') == "online_score":
+            try:
+                online_score_request = OnlineScoreRequest(
+                    first_name=args.get('first_name'),
+                    last_name=args.get('last_name'),
+                    email=args.get('email'),
+                    phone=args.get('phone'),
+                    birthday=args.get('birthday'),
+                    gender=args.get('gender')
+                )
+                online_score_request.validate()
+                score = get_score(
+                    store=store,
+                    phone=online_score_request.phone,
+                    email=online_score_request.email,
+                    birthday=online_score_request.birthday,
+                    gender=online_score_request.gender,
+                    first_name=online_score_request.first_name,
+                    last_name=online_score_request.last_name,
+                )
+            except ValidationException as e:
+                return {"error": str(e)}, INVALID_REQUEST
 
+            return {"score": score}, 200
 
-        try:
-            online_score_request = OnlineScoreRequest(
-                first_name=args.get('first_name'),
-                last_name=args.get('last_name'),
-                email=args.get('email'),
-                phone=args.get('phone'),
-                birthday=args.get('birthday'),
-                gender=args.get('gender')
-            )
-            online_score_request.validate()
-            score = get_score(
-                store=store,
-                phone=online_score_request.phone,
-                email=online_score_request.email,
-                birthday=online_score_request.birthday,
-                gender=online_score_request.gender,
-                first_name=online_score_request.first_name,
-                last_name=online_score_request.last_name,
-            )
-        except ValidationException as e:
-            return {"error": str(e)}, INVALID_REQUEST
+    return {
+        "error": "Forbidden",
+    }, 403
 
-        return {"score": score}, 200
-
-
-    response, code = None, None
-    return response, code
+    # response, code = None, None
+    # return response, code
 
 
 class MainHTTPHandler(BaseHTTPRequestHandler):
