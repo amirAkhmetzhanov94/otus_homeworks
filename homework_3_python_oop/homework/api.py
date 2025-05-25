@@ -52,6 +52,7 @@ class Field:
                     value=value,
                     hint="Field cannot be None",
                 )
+            return
 
 
 class MetaRequest(type):
@@ -68,6 +69,7 @@ class MetaRequest(type):
 class CharField(Field):
     def validate(self, value):
         super().validate(value)
+
         if not isinstance(value, str):
             raise ValidationException(
                 message="Field must be a string",
@@ -77,15 +79,24 @@ class CharField(Field):
             )
 
 
+
 class ArgumentsField(Field):
 
     def validate(self, value):
-        ...
+        super().validate(value)
+        if not isinstance(value, dict):
+            raise ValidationException(
+                message="Field must be a dictionary",
+                field=self.__class__.__name__,
+                value=value,
+                hint="Field must be a dictionary",
+            )
 
 
 class EmailField(Field):
     def validate(self, value):
         super().validate(value)
+
         if '@' not in value:
             raise ValidationException(
                 message="Invalid email format",
@@ -98,6 +109,7 @@ class EmailField(Field):
 class PhoneField(Field):
     def validate(self, value):
         super().validate(value)
+
         if isinstance(value, int):
             value = str(value)
         if len(value) != 11:
@@ -119,6 +131,7 @@ class PhoneField(Field):
 class DateField(Field):
     def validate(self, value):
         super().validate(value)
+
         if isinstance(value, str):
             try:
                 value = datetime.datetime.strptime(value, "%d.%m.%Y").date()
@@ -141,6 +154,7 @@ class DateField(Field):
 class BirthDayField(Field):
     def validate(self, value):
         super().validate(value)
+
         try:
             birthday = datetime.datetime.strptime(value, "%d.%m.%Y").date()
         except ValueError:
@@ -202,9 +216,20 @@ class ClientIDsField(Field):
 class BaseRequest(metaclass=MetaRequest):
     def __init__(self, **kwargs):
         for name, field in self.__fields__.items():
-            value = kwargs.get(name)
-            field.validate(value)
-            setattr(self, name, value)
+            if name in kwargs:
+                value = kwargs[name]
+                field.validate(value)
+                setattr(self, name, value)
+            elif field.required:
+                raise ValidationException(
+                    message=f"Missing required field",
+                    field=name,
+                    value=None,
+                    hint="This field is required and was not provided"
+                )
+            else:
+                setattr(self, name, None)
+
 
 
 class ClientsInterestsRequest(BaseRequest):
@@ -223,9 +248,9 @@ class OnlineScoreRequest(BaseRequest):
     def has_valid_pair(self):
         if any(
                 [
-                    self.phone and self.email,
-                    self.first_name and self.last_name,
-                    self.birthday and self.gender
+                    (self.phone and self.email) or
+                    (self.first_name and self.last_name) or
+                    (self.birthday and self.gender is not None)
                 ]
         ):
             return True
@@ -273,31 +298,30 @@ def check_auth(request):
 
 def method_handler(request, ctx, store):
     request_body = request.get('body')
-    request_method = MethodRequest(
-        account=request_body.get('account'),
-        login=request_body.get('login'),
-        token=request_body.get('token'),
-        method=request_body.get('method'),
-        arguments=request_body.get('arguments'),
-    )
+    try:
+        request_method = MethodRequest(
+            account=request_body.get('account'),
+            login=request_body.get('login'),
+            token=request_body.get('token'),
+            method=request_body.get('method'),
+            arguments=request_body.get('arguments'),
+        )
+    except ValidationException as e:
+        return {"error": str(e)}, INVALID_REQUEST
+
 
     if check_auth(request_method):
         args = request_body.get('arguments', {})
+        valid_args = {k: v for k, v in args.items() if v is not None}
+        print(valid_args)
         ctx["has"] = [k for k, v in args.items() if v not in (None, "", [])]
         if request_method.is_admin:
             return {
                 "score": 42,
-            }, 200
+            }, OK
         if request_body.get('method') == "online_score":
             try:
-                online_score_request = OnlineScoreRequest(
-                    first_name=args.get('first_name'),
-                    last_name=args.get('last_name'),
-                    email=args.get('email'),
-                    phone=args.get('phone'),
-                    birthday=args.get('birthday'),
-                    gender=args.get('gender')
-                )
+                online_score_request = OnlineScoreRequest(**valid_args)
                 online_score_request.validate()
                 score = get_score(
                     store=store,
@@ -311,14 +335,11 @@ def method_handler(request, ctx, store):
             except ValidationException as e:
                 return {"error": str(e)}, INVALID_REQUEST
 
-            return {"score": score}, 200
+            return {"score": score}, OK
 
-        elif request_body.get('method') == "client_interests":
+        elif request_body.get('method') == "clients_interests":
             try:
-                client_ids_request = ClientsInterestsRequest(
-                    client_ids=args.get('client_ids'),
-                    date=args.get('date')
-                )
+                client_ids_request = ClientsInterestsRequest(**valid_args)
             except ValidationException as e:
                 return {"error": str(e)}, INVALID_REQUEST
 
@@ -332,7 +353,7 @@ def method_handler(request, ctx, store):
                     cid=client_id,
                 )
 
-            return client_interests, 200
+            return client_interests, OK
 
     return {"error": "Forbidden"}, 403
 
