@@ -25,13 +25,13 @@ python api.py -p 8080 -l my_log_file.txt
 Для запуска всех тестов:
 
 ```bash
-python test.py
+python test_1.py
 ```
 
 Для подробного вывода:
 
 ```bash
-python -m unittest test.py -v
+python -m unittest test_1.py -v
 ```
 
 ---
