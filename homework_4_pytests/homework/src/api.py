@@ -9,6 +9,8 @@ import uuid
 from argparse import ArgumentParser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+from src.repository import RedisRepository
+from src.store import Store
 from src.exceptions import ValidationException
 from src.scoring import get_interests, get_score
 
@@ -36,6 +38,13 @@ GENDERS = {
     MALE: "male",
     FEMALE: "female",
 }
+
+REPOSITORY = RedisRepository(
+    host='localhost',
+    port=6379,
+    connection_timeout=1,
+    operations_timeout=1,
+)
 
 
 class Field:
@@ -361,7 +370,8 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
     router = {
         "method": method_handler
     }
-    store = None
+
+    store = Store(repository=REPOSITORY, store={})
 
     def get_request_id(self, headers):
         return headers.get('HTTP_X_REQUEST_ID', uuid.uuid4().hex)
@@ -424,4 +434,5 @@ if __name__ == "__main__":
         server.serve_forever()
     except KeyboardInterrupt:
         pass
+
     server.server_close()

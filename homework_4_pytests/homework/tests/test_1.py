@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 from src import api
-
+from src.utils import retry_decorator
 
 ADMIN_SALT = "42"
 SALT = "Otus"
@@ -27,6 +27,7 @@ class TestSuite(object):
     context = {}
     headers = {}
     store = None
+    repository = None
 
     def get_response(self, request):
         return api.method_handler({"body": request, "headers": self.headers}, self.context, self.store)
@@ -99,6 +100,23 @@ class TestSuite(object):
         response, code = self.get_response(request_data)
 
         assert code == 500
+
+
+    def test_retry_decorator(self, mocker):
+        mock_fn = mocker.Mock()
+        mock_fn.side_effect = [
+            Exception('Retry #1'),
+            Exception('Retry #2'),
+            'success'
+        ]
+
+        @retry_decorator(timeout=0, retry_times=3)
+        def flaky_function():
+            return mock_fn()
+
+        result = flaky_function()
+        assert result == "success"
+        assert mock_fn.call_count == 3
 
 
 
