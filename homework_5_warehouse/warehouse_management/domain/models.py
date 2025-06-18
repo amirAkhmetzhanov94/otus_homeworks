@@ -2,7 +2,7 @@ import dataclasses
 import json
 
 from typing import List
-from uuid import UUID
+from uuid import UUID, uuid4
 from typing import Optional
 from enum import Enum
 from decimal import Decimal
@@ -27,6 +27,13 @@ class Product:
     quantity: int
     price: float
     category: ProductCategory
+
+    def __post_init__(self):
+        if self.price < 0:
+            raise ValueError('Unit price cannot be negative')
+        if self.quantity < 0:
+            raise ValueError('Quantity cannot be negative')
+
 
     def to_dict(self):
         return {
@@ -60,14 +67,19 @@ class OrderItem:
 
 
     def __post_init__(self):
+        if self.unit_price < 0:
+            raise ValueError('Unit price cannot be negative')
+        if self.quantity < 0:
+            raise ValueError('Quantity cannot be negative')
         self.sub_total = Decimal(self.quantity * self.unit_price)
+
 
 
 
 
 @dataclasses.dataclass
 class Order:
-    id: int
+    id: UUID
     status: OrderStatus = OrderStatus.NEW
     items: List[OrderItem] = dataclasses.field(default_factory=list)
     _ACCEPTED_STATUSES = {
@@ -76,9 +88,21 @@ class Order:
         OrderStatus.SHIPPED: (OrderStatus.DELIVERED,)
     }
 
+    def __post_init__(self):
+        if self.id is None:
+            self.id = uuid4()
+        if not self.items:
+            raise ValueError('Cannot create order without products')
+
 
     def change_status(self, new_status):
-        if new_status in self._ACCEPTED_STATUSES.get(self.status):
+        approved_status = self._ACCEPTED_STATUSES.get(self.status)
+        if not approved_status:
+            raise ValueError(
+                "Status value doesn't found among Accepted Statuses"
+            )
+
+        if new_status in approved_status:
             self.status = new_status
         else:
             raise ValueError(
@@ -92,4 +116,14 @@ class Order:
     @property
     def total_amount(self) -> Decimal:
         return sum(item.sub_total for item in self.items)
+
+
+@dataclasses.dataclass
+class Warehouse:
+    id: UUID
+    name: str
+    address: str
+    location: str
+    capacity: int
+
 

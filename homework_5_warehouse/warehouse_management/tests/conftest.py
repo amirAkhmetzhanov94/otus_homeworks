@@ -5,6 +5,11 @@ import random
 from decimal import Decimal
 
 from warehouse_management.domain.models import OrderItem
+from warehouse_management.domain.services import WarehouseService
+
+
+from warehouse_management.domain.models import ProductCategory
+
 
 @pytest.fixture
 def generate_random_item():
@@ -38,3 +43,23 @@ def bunch_of_items():
 def order_items(bunch_of_items):
     return [OrderItem(**item) for item in bunch_of_items]
 
+@pytest.fixture
+def product_mock_repo(mocker):
+    product_mock_repo = mocker.Mock()
+    return product_mock_repo
+
+@pytest.fixture
+def order_mock_repo(mocker):
+    order_mock_repo = mocker.Mock()
+    return order_mock_repo
+
+@pytest.fixture
+def test_category():
+    return ProductCategory(name='test_category')
+
+@pytest.fixture
+def warehouse_service(product_mock_repo, order_mock_repo):
+    return WarehouseService(
+        product_repo=product_mock_repo,
+        order_repo=order_mock_repo,
+    )

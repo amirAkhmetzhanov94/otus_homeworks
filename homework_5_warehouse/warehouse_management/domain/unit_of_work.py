@@ -1,3 +1,5 @@
+from warehouse_management.domain.repositories import ProductRepository, OrderRepository
+
 from abc import ABC, abstractmethod
 
 class UnitOfWork(ABC):
@@ -15,4 +17,14 @@ class UnitOfWork(ABC):
 
     @abstractmethod
     def rollback(self):
+        pass
+
+    @property
+    @abstractmethod
+    def products(self) -> ProductRepository:
+        pass
+
+    @property
+    @abstractmethod
+    def orders(self) -> OrderRepository:
         pass

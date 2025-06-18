@@ -48,8 +48,36 @@ def test_add_item(generate_random_item, order_items):
     assert len(order.items) == len(order_items) + 1
 
 @pytest.mark.parametrize(
-    "test_input, expected", [
+    "current_status, new_status, expected_status", [
+        ("new", "processing", "processing"),
+        ("processing", "shipped", "shipped"),
     ]
 )
-def test_change_status(test_input, expected):
-    ...
+def test_change_status_valid(
+    current_status,
+    new_status,
+    expected_status,
+    bunch_of_items
+):
+    order = Order(id=1, items=bunch_of_items, status=OrderStatus(current_status))
+    order.change_status(OrderStatus(new_status))
+    assert order.status == OrderStatus(expected_status)
+
+
+@pytest.mark.parametrize(
+    "current_status, new_status", [
+        ("new", "delivered"),
+        ("processing", "delivered"),
+        ("shipped", "processing"),
+        ("shipped", "canceled"),
+        ("delivered", "processing"),
+    ]
+)
+def test_change_status_invalid(
+    current_status,
+    new_status,
+    bunch_of_items
+):
+    order = Order(id=1, items=bunch_of_items, status=OrderStatus(current_status))
+    with pytest.raises(ValueError):
+        order.change_status(OrderStatus(new_status))
