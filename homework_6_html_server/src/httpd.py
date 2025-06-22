@@ -1,4 +1,5 @@
 import socket
+import os
 
 from abc import ABC
 from collections.abc import Buffer
@@ -36,6 +37,16 @@ class BaseClient(ABC):
 
 
 class TCPServer(BaseServer):
+    CONTENT_TYPE = {
+        '.html': 'text/html',
+        '.css': 'text/css',
+        '.js': 'application/javascript',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+    }
+
     def __init__(
         self,
         host: str,
@@ -81,16 +92,22 @@ class TCPServer(BaseServer):
     def send(self, response: Buffer):
         self.connection.sendall(response)
 
+    def get_content_type(self, file_path: str):
+        extension_name = os.path.splitext(file_path)[1].lower()
+        return self.CONTENT_TYPE.get(extension_name, 'application/octet-stream')
 
     @staticmethod
     def build_response(
         message: str,
+        status_code: int,
         content_length: int,
+        content_type: str,
+        status_message: str,
     ):
         return bytes(
             (
-                f'HTTP/1.1 200 OK\r\n'
-                f'Content-Type: text/plain\r\n'
+                f'HTTP/1.1 {status_code} {status_message}\r\n'
+                f'Content-Type: {content_type}\r\n'
                 f'Content-Length: {content_length}\r\n'
                 f'Connection: keep-alive\r\n\r\n'
                 f'{message}'
