@@ -1,76 +1,116 @@
-import logging
-import argparse
 import socket
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-)
+from abc import ABC
+from collections.abc import Buffer
+
+from logger import logger
 
 
-def initiate_argument_parser():
-    parser = argparse.ArgumentParser(
-        prog='HTTP Server',
-        description='OTUS Homework about HTTP server',
-    )
-    parser.add_argument('-r', '--doc-root')
-    return parser
+class BaseServer(ABC):
+    def initiate_server_socket(self):
+        raise NotImplementedError
 
-def initiate_server_socket(
-    address: str,
-    port: int,
-    number_of_clients: int,
-):
-    serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    serversocket.bind((address, port))
-    serversocket.listen(number_of_clients)
-    return serversocket
+    def accept(self):
+        raise NotImplementedError
 
-def parse_data(
-    data:str
-):
-    lines = data.split('\r\n')
-    if not lines or not lines[0]:
-        logger.warning("Empty request line")
-        return
-    method, path, http_version = lines[0].split()
-    logger.info(f'Method: {method}, Path: {path}, HTTP Version: {http_version}')
+    def serve(self):
+        raise NotImplementedError
+
+    def close(self):
+        raise NotImplementedError
+
+    def send(self, response: str):
+        raise NotImplementedError
 
 
-def build_response():
-    return (b'HTTP/1.1 200 OK\r\n'
-            b'Content-Type: text/plain\r\n'
-            b'Content-Length: 12\r\n'
-            b'Connection: keep-alive\r\n\r\n'
-            b'Hello World')
+
+class BaseClient(ABC):
+    def send(self, message: bytes):
+        raise NotImplementedError
+
+    def close(self):
+        raise NotImplementedError
+
+    def connect(self):
+        raise NotImplementedError
 
 
-def main():
-   parser = initiate_argument_parser()
-   args = parser.parse_args()
-   doc_root = args.doc_root
-   if not doc_root:
-       raise ValueError('Root folder must be set')
-   logger.info(f'Document root is set to: {doc_root}')
+class TCPServer(BaseServer):
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        number_of_clients: int = None
+    ):
+        self.host = host
+        self.port = port
+        self.number_of_clients = number_of_clients
+        self.server_socket = self.initiate_server_socket()
+        self.connection = None
 
-   server_socket = initiate_server_socket('127.0.0.1', 8080, 5)
+    def initiate_server_socket(
+        self
+    ):
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.bind((self.host, self.port))
+        server_socket.listen(self.number_of_clients)
+        return server_socket
 
-   while True:
-       connection, address = server_socket.accept()
-       logger.info(f'Connected by {address}')
-       data = connection.recv(1024).decode('utf-8')
+    def close(self):
+        self.server_socket.close()
 
-       if not data:
-           connection.close()
-           logger.info("Connection closed (no data)")
-           continue
+    def close_connection(self):
+        if self.connection:
+            self.connection.close()
+            self.connection = None
 
-       parse_data(data)
-       response = build_response()
-       connection.sendall(response)
-       connection.close()
+    def accept(self):
+        return self.server_socket.accept()
+
+    def serve(self):
+        self.connection, address = self.accept()
+        logger.info(f'Connected by {address}')
+        data = self.connection.recv(1024).decode('utf-8')
+
+        if not data:
+            self.connection.close()
+            logger.info("Connection closed (no data)")
+
+        return data
+
+    def send(self, response: Buffer):
+        self.connection.sendall(response)
 
 
-if __name__ == '__main__':
-    main()
+    @staticmethod
+    def build_response(
+        message: str,
+        content_length: int,
+    ):
+        return bytes(
+            (
+                f'HTTP/1.1 200 OK\r\n'
+                f'Content-Type: text/plain\r\n'
+                f'Content-Length: {content_length}\r\n'
+                f'Connection: keep-alive\r\n\r\n'
+                f'{message}'
+            ),
+            encoding='utf-8'
+        )
+
+
+class TCPClient(BaseClient):
+    def __init__(
+        self,
+        host: str,
+        port: int,
+    ):
+        self.host = host
+        self.port = port
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    def connect(self):
+        self.server_socket.connect((self.host, self.port))
+
+    def send(self, message: bytes):
+        self.server_socket.sendall(message)
