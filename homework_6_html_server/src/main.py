@@ -13,7 +13,7 @@ def main():
        raise ValueError('Root folder must be set')
    logger.info(f'Document root is set to: {doc_root}')
 
-   tcp_server = TCPServer('127.0.0.1', 8080, 5)
+   tcp_server = TCPServer('127.0.0.1', 8000, 5)
 
    while True:
        data = tcp_server.serve()

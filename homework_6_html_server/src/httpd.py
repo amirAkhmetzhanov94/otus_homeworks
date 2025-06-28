@@ -107,6 +107,7 @@ class TCPServer(BaseServer):
         return bytes(
             (
                 f'HTTP/1.1 {status_code} {status_message}\r\n'
+                f'Allow: GET, HEAD\r\n'
                 f'Content-Type: {content_type}\r\n'
                 f'Content-Length: {content_length}\r\n'
                 f'Connection: keep-alive\r\n\r\n'
