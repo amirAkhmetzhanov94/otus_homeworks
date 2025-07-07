@@ -1,0 +1,31 @@
+services:
+  web:
+    build: .
+    command: gunicorn otus_homework_django.wsgi:application --bind 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      POSTGRES_DB: blog
+      POSTGRES_USER: blog_user
+      POSTGRES_PASSWORD: blog_pass
+
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "blog_user", "-d", "blog"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

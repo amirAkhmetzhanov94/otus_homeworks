@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ post.title }}</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 2rem;
+            background-color: #fffdf8;
+        }
+        .post {
+            max-width: 800px;
+            margin: auto;
+        }
+        .meta {
+            font-size: 0.9rem;
+            color: #777;
+        }
+        .back {
+            display: inline-block;
+            margin-top: 2rem;
+            text-decoration: none;
+            color: #444;
+        }
+    </style>
+</head>
+<body>
+
+<div class="post">
+    <h1>{{ post.title }}</h1>
+    <p class="meta">Автор: {{ post.author }} | {{ post.created_at|date:"d.m.Y H:i" }}</p>
+    <div>{{ post.text|linebreaks }}</div>
+
+    <a class="back" href="{% url 'main-page' %}">← Назад ко всем постам</a>
+</div>
+
+</body>
+</html>
